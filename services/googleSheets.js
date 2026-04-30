@@ -5,13 +5,12 @@ let spreadsheetId = null;
 
 // Sheet names from environment
 const SHEET_NAMES = {
-    SISWA: process.env.SHEET_SISWA || 'Siswa',
+    SISWA: process.env.SHEET_SISWA || 'siswa',
     GURU: process.env.SHEET_GURU || 'users',
-    ABSENSI: process.env.SHEET_ABSENSI || 'Absensi',
+    ABSENSI: process.env.SHEET_ABSENSI || 'absensi',
     SESSIONS: process.env.SHEET_SESSIONS || 'sessions',
-    KELAS: process.env.SHEET_KELAS || 'Kelas',
-    KONFIGURASI: process.env.SHEET_KONFIGURASI || 'Konfigurasi',
-    LIBUR: process.env.SHEET_LIBUR || 'Libur'
+    KONFIGURASI: process.env.SHEET_KONFIGURASI || 'konfigurasi',
+    LIBUR: process.env.SHEET_LIBUR || 'libur'
 };
 
 async function initGoogleSheets() {
