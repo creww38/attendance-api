@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -11,23 +12,52 @@ const guruRoutes = require('./routes/guru');
 const absensiRoutes = require('./routes/absensi');
 const configRoutes = require('./routes/config');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+// Import services
+const { initGoogleSheets } = require('./services/googleSheets');
 
-// Middleware
+const app = express();
+
+// Trust proxy (for rate limiting behind Vercel)
+app.set('trust proxy', 1);
+
+// Security middleware
 app.use(helmet({
     contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(cors());
-app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Logging middleware
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    next();
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    message: { success: false, message: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
 });
+app.use('/api/', limiter);
+
+// Compression
+app.use(compression());
+
+// CORS configuration
+app.use(cors({
+    origin: '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Logging middleware (development only)
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+        next();
+    });
+}
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -42,15 +72,18 @@ app.get('/api/health', (req, res) => {
         success: true, 
         status: 'OK', 
         timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        environment: process.env.NODE_ENV || 'development',
+        platform: 'Vercel'
     });
 });
 
-// Root
+// Root endpoint
 app.get('/', (req, res) => {
     res.json({
         name: 'Attendance API',
+        version: '1.0.0',
         status: 'running',
+        platform: 'Vercel',
         endpoints: {
             auth: '/api/auth',
             siswa: '/api/siswa',
@@ -65,7 +98,7 @@ app.get('/', (req, res) => {
 app.use('*', (req, res) => {
     res.status(404).json({ 
         success: false, 
-        message: `Cannot ${req.method} ${req.url}`
+        message: `Endpoint ${req.method} ${req.url} tidak ditemukan` 
     });
 });
 
@@ -74,23 +107,23 @@ app.use((err, req, res, next) => {
     console.error('Error:', err.message);
     res.status(500).json({ 
         success: false, 
-        message: err.message 
+        message: err.message || 'Terjadi kesalahan pada server'
     });
 });
 
-// Start server
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log('\n========================================');
-    console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`);
-    console.log(`📍 URL: http://localhost:${PORT}`);
-    console.log(`📊 Health: http://localhost:${PORT}/api/health`);
-    console.log('========================================\n');
+// Initialize Google Sheets (runs on first request)
+let sheetsInitialized = false;
+
+app.use(async (req, res, next) => {
+    if (!sheetsInitialized && req.path.startsWith('/api')) {
+        sheetsInitialized = await initGoogleSheets();
+        if (sheetsInitialized) {
+            console.log('✅ Google Sheets initialized');
+        } else {
+            console.warn('⚠️ Google Sheets not initialized');
+        }
+    }
+    next();
 });
 
-server.on('error', (error) => {
-    console.error('Server error:', error);
-    if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use!`);
-        console.log('Try changing PORT in .env file');
-    }
-});
+module.exports = app;
