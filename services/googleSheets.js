@@ -10,7 +10,7 @@ const SHEET_NAMES = {
     ABSENSI: process.env.SHEET_ABSENSI || 'absensi',
     SESSIONS: process.env.SHEET_SESSIONS || 'sessions',
     KONFIGURASI: process.env.SHEET_KONFIGURASI || 'konfigurasi',
-    LIBUR: process.env.SHEET_LIBUR || 'libur'
+    LIBUR: process.env.SHEET_LIBUR || 'hari_libur'
 };
 
 async function initGoogleSheets() {
