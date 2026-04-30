@@ -3,6 +3,7 @@ const { google } = require('googleapis');
 let sheets = null;
 let spreadsheetId = null;
 
+// Sheet names from environment
 const SHEET_NAMES = {
     SISWA: process.env.SHEET_SISWA || 'Siswa',
     GURU: process.env.SHEET_GURU || 'users',
@@ -18,10 +19,12 @@ async function initGoogleSheets() {
         spreadsheetId = process.env.SPREADSHEET_ID;
         
         if (!spreadsheetId) {
-            throw new Error('SPREADSHEET_ID not found');
+            throw new Error('SPREADSHEET_ID not found in environment variables');
         }
         
-        // Untuk Vercel, gunakan environment variables
+        console.log('📊 Initializing Google Sheets...');
+        
+        // Gunakan credentials dari environment variables
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
@@ -36,7 +39,7 @@ async function initGoogleSheets() {
         // Test connection
         await sheets.spreadsheets.get({ spreadsheetId });
         
-        console.log('✅ Google Sheets initialized on Vercel');
+        console.log('✅ Google Sheets initialized successfully');
         return true;
     } catch (error) {
         console.error('❌ Google Sheets error:', error.message);
